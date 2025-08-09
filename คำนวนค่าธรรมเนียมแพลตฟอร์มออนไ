@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ตัวคำนวณราคาขาย + ค่าธรรมเนียม (TikTok • Shopee • Lazada)</title>
+<style>
+  :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee;--accent-2:#a78bfa;--ok:#34d399;--warn:#fbbf24;--danger:#fb7185;--radius:16px}
+  *{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#0b1220,#0f172a 60%,#111827);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,"Noto Sans Thai",sans-serif}
+  header{padding:24px 18px 4px;text-align:center}
+  h1{margin:0;font-size:1.25rem} .sub{color:var(--muted);font-size:.92rem}
+  .wrap{max-width:1000px;margin:8px auto 40px;padding:10px;display:grid;gap:14px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(148,163,184,.18);border-radius:var(--radius);padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .grid{display:grid;gap:10px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}@media(max-width:860px){.g2,.g3{grid-template-columns:1fr}}
+  label{font-size:.9rem;color:var(--muted)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .seg{display:inline-flex;gap:4px;padding:4px;background:#0b1020;border:1px solid rgba(148,163,184,.18);border-radius:10px}
+  .seg button{border:0;padding:8px 12px;border-radius:8px;background:transparent;color:var(--text);cursor:pointer}
+  .seg button[aria-pressed="true"]{background:linear-gradient(180deg,rgba(34,211,238,.15),rgba(167,139,250,.15))}
+  input,select{width:100%;padding:12px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.6);color:var(--text);font-size:1rem;outline:none}
+  input:focus,select:focus{border-color:transparent;box-shadow:0 0 0 3px rgba(167,139,250,.35)}
+  .hint{font-size:.8rem;color:var(--muted)}
+  .pill{display:inline-flex;gap:8px;padding:6px 10px;border-radius:999px;border:1px dashed rgba(148,163,184,.35);color:var(--muted);font-size:.85rem}
+  .result .big{font-size:1.6rem;font-weight:700}
+  .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .muted{color:var(--muted)} .hr{height:1px;background:linear-gradient(90deg,transparent,rgba(148,163,184,.35),transparent);margin:6px 0 6px}
+  .btn{border:0;padding:10px 12px;border-radius:10px;color:#0b1020;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent-2));cursor:pointer}
+  footer{color:var(--muted);text-align:center;padding:14px 0 26px;font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>ตัวคำนวณราคาขาย + ค่าธรรมเนียม 🧮</h1>
+  <div class="sub">ตั้ง “ราคาก่อนส่วนลด” ให้เงินรับสุทธิหลังส่วนลด & ค่าธรรมเนียม = ต้นทุน + กำไร</div>
+</header>
+
+<div class="wrap">
+  <!-- A. พื้นฐาน -->
+  <section class="card grid g2">
+    <div>
+      <label>ต้นทุน (บาท)</label>
+      <input id="cost" type="number" inputmode="decimal" placeholder="เช่น 120" min="0" step="0.01" />
+    </div>
+    <div>
+      <div class="row" style="justify-content:space-between">
+        <label>กำไรที่ต้องการ</label>
+        <div class="seg" role="group">
+          <button id="g_abs" aria-pressed="true">บาท</button>
+          <button id="g_pct" aria-pressed="false">% ของต้นทุน</button>
+        </div>
+      </div>
+      <input id="profit" type="number" inputmode="decimal" placeholder="เช่น 30 (บาท) หรือ 20 (%)" min="0" step="0.01" />
+      <div class="row" style="gap:6px;margin-top:6px">
+        <button class="btn" id="quick10" type="button">กำไร 10%</button>
+        <button class="btn" id="quick20" type="button">กำไร 20%</button>
+        <button class="btn" id="quick30" type="button">กำไร 30%</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- B. ส่วนลดสองชั้น -->
+  <section class="card grid">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">ตั้งค่าส่วนลด</h3>
+      <div class="seg" role="group">
+        <button id="order_store_first" aria-pressed="true">ร้านค้าก่อน → แพลตฟอร์ม</button>
+        <button id="order_platform_first" aria-pressed="false">แพลตฟอร์มก่อน → ร้านค้า</button>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div>
+        <label>ส่วนลดร้านค้า (%)</label>
+        <input id="store_pct" type="number" inputmode="decimal" placeholder="เช่น 10" min="0" step="0.01" />
+        <div class="hint">ใส่ 0 ถ้าไม่มี</div>
+      </div>
+      <div>
+        <label>ส่วนลดร้านค้า (คงที่, บาท)</label>
+        <input id="store_fix" type="number" inputmode="decimal" placeholder="เช่น 20" min="0" step="0.01" />
+      </div>
+      <div>
+        <label>ส่วนลดแพลตฟอร์ม (%)</label>
+        <input id="plat_pct" type="number" inputmode="decimal" placeholder="เช่น 5" min="0" step="0.01" />
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div>
+        <label>ส่วนลดแพลตฟอร์ม (คงที่, บาท)</label>
+        <input id="plat_fix" type="number" inputmode="decimal" placeholder="เช่น 15" min="0" step="0.01" />
+      </div>
+      <div>
+        <label>ทศนิยมผลลัพธ์</label>
+        <input id="dec" type="number" min="0" max="4" step="1" value="2" />
+      </div>
+      <div>
+        <label>ปัดเศษราคาตั้ง (บาท)</label>
+        <input id="roundTo" type="number" min="0" step="1" value="1" />
+      </div>
+    </div>
+  </section>
+
+  <!-- C. ค่าธรรมเนียมแพลตฟอร์ม -->
+  <section class="card grid">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3 style="margin:0">ค่าธรรมเนียมแพลตฟอร์ม (ไทย) </h3>
+      <div class="row">
+        <label class="muted">พรีเซ็ต:</label>
+        <select id="preset">
+          <option value="manual">— เลือก/ตั้งเอง —</option>
+          <option value="tiktok">TikTok Shop TH (อัปเดต 1 ม.ค. 2025 มีปรับโครงสร้างค่าธรรมเนียม)</option>
+          <option value="shopee">Shopee TH (ตัวอย่างพรีเซ็ตล่าสุด)</option>
+          <option value="lazada">Lazada TH (ตัวอย่างพรีเซ็ตล่าสุด)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div>
+        <label>คอมมิชชั่นแพลตฟอร์ม (%)</label>
+        <input id="fee_comm_pct" type="number" inputmode="decimal" placeholder="ใส่ตามหมวดหมู่" min="0" step="0.01" />
+        <div class="hint">ขึ้นกับหมวดสินค้า/สถานะร้าน (Mall/ทั่วไป)</div>
+      </div>
+      <div>
+        <label>ค่าธรรมเนียมชำระเงิน/ทรานแซกชัน (%)</label>
+        <input id="fee_pay_pct" type="number" inputmode="decimal" placeholder="เช่น 2 ~ 3.21" min="0" step="0.01" />
+        <div class="hint">เช่น Shopee TH มักอ้าง 3.21% รวม VAT</div>
+      </div>
+      <div>
+        <label>ค่าธรรมเนียมคงที่ (บาท)</label>
+        <input id="fee_fix" type="number" inputmode="decimal" placeholder="เช่น 0" min="0" step="0.01" />
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div>
+        <label>ฐานคำนวณ “คอมมิชชั่น”</label>
+        <select id="base_comm">
+          <option value="store_only">หลังส่วนลดร้านค้า</option>
+          <option value="all_after">หลังส่วนลดทั้งหมด</option>
+          <option value="list">ราคาตั้ง (ก่อนส่วนลด)</option>
+        </select>
+        <div class="hint">ปกติคอมมิชชั่นคิดจากราคาหลัง “ส่วนลดร้านค้า” (ไม่นับคูปองแพลตฟอร์ม)</div>
+      </div>
+      <div>
+        <label>ฐานคำนวณ “ค่าชำระเงิน”</label>
+        <select id="base_pay">
+          <option value="final">ยอดที่ลูกค้าจ่ายหลังส่วนลดทั้งหมด</option>
+          <option value="store_only">หลังส่วนลดร้านค้า</option>
+          <option value="list">ราคาตั้ง (ก่อนส่วนลด)</option>
+        </select>
+      </div>
+    </div>
+    <div class="hint">หมายเหตุ: โครงสร้างจริงของแต่ละแพลตฟอร์มมีเงื่อนไขย่อยตามหมวด/แคมเปญ โปรดตรวจใน Seller Center ของคุณเสมอ</div>
+  </section>
+
+  <!-- D. ผลลัพธ์ -->
+  <section class="card grid result">
+    <div class="row" style="justify-content:space-between"><span class="muted">ราคาตั้งขาย (ก่อนส่วนลด)</span><span id="listPrice" class="big mono">—</span></div>
+    <div class="hr"></div>
+    <div class="row" style="justify-content:space-between"><span class="muted">ยอดหลังส่วนลดทั้งหมด (ลูกค้าจ่าย)</span><span id="finalPrice" class="big mono">—</span></div>
+    <div class="row" style="justify-content:space-between"><span class="muted">ค่าธรรมเนียมรวม (ประมาณ)</span><span id="feeTotal" class="mono">—</span></div>
+    <div class="row" style="justify-content:space-between"><span class="muted">เงินรับสุทธิ (หลังค่าธรรมเนียม)</span><span id="net" class="big mono">—</span></div>
+    <div class="row" style="justify-content:space-between"><span class="muted">เป้าหมาย = ต้นทุน + กำไร</span><span id="target" class="mono">—</span></div>
+    <div class="hr"></div>
+    <div class="grid g2">
+      <div class="grid">
+        <strong>แสดงขั้นตอนส่วนลด</strong>
+        <div class="row" style="justify-content:space-between"><span class="muted">หลังส่วนลดชั้นที่ 1</span><span id="step1" class="mono">—</span></div>
+        <div class="row" style="justify-content:space-between"><span class="muted">หลังส่วนลดชั้นที่ 2</span><span id="step2" class="mono">—</span></div>
+      </div>
+      <div class="grid">
+        <strong>ข้อความช่วยเหลือ</strong>
+        <div id="note" class="muted">ใส่ข้อมูลด้านบนให้ครบ ระบบจะคำนวณอัตโนมัติ</div>
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn" id="copyBtn" type="button">คัดลอกราคาตั้ง</button></div>
+  </section>
+</div>
+
+<footer>สูตรถือว่า “ส่วนลดคงที่” ถูกหักก่อนส่วนลด % ในแต่ละชั้น และสามารถสลับลำดับชั้น ร้านค้า/แพลตฟอร์ม ได้</footer>
+
+<script>
+(function(){
+  const $ = id=>document.getElementById(id);
+  const els = {
+    cost:$('cost'), profit:$('profit'), gAbs:$('g_abs'), gPct:$('g_pct'),
+    storePct:$('store_pct'), storeFix:$('store_fix'),
+    platPct:$('plat_pct'), platFix:$('plat_fix'),
+    orderStoreFirst:$('order_store_first'), orderPlatFirst:$('order_platform_first'),
+    dec:$('dec'), roundTo:$('roundTo'),
+    // fees
+    preset:$('preset'), feeComm:$('fee_comm_pct'), feePay:$('fee_pay_pct'), feeFix:$('fee_fix'),
+    baseComm:$('base_comm'), basePay:$('base_pay'),
+    // output
+    listPrice:$('listPrice'), finalPrice:$('finalPrice'), feeTotal:$('feeTotal'),
+    net:$('net'), target:$('target'), step1:$('step1'), step2:$('step2'),
+    note:$('note'), copyBtn:$('copyBtn'),
+    quick10:$('quick10'), quick20:$('quick20'), quick30:$('quick30')
+  };
+
+  // helpers
+  const toNum = v => {
+    const n = parseFloat((v??'').toString().replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  };
+  const money = (n, dec=2)=> isFinite(n) ? n.toLocaleString('th-TH',{minimumFractionDigits:dec, maximumFractionDigits:dec}) : '—';
+  const setPressed = (btn, on)=> btn.setAttribute('aria-pressed', on?'true':'false');
+
+  // profit mode
+  els.gAbs.onclick = ()=>{ setPressed(els.gAbs,true); setPressed(els.gPct,false); calc(); };
+  els.gPct.onclick = ()=>{ setPressed(els.gAbs,false); setPressed(els.gPct,true); calc(); };
+
+  // order
+  els.orderStoreFirst.onclick = ()=>{ setPressed(els.orderStoreFirst,true); setPressed(els.orderPlatFirst,false); calc(); };
+  els.orderPlatFirst.onclick  = ()=>{ setPressed(els.orderStoreFirst,false); setPressed(els.orderPlatFirst,true); calc(); };
+
+  // quick profit %
+  els.quick10.onclick=()=>{ setPressed(els.gAbs,false); setPressed(els.gPct,true); els.profit.value=10; calc(); };
+  els.quick20.onclick=()=>{ setPressed(els.gAbs,false); setPressed(els.gPct,true); els.profit.value=20; calc(); };
+  els.quick30.onclick=()=>{ setPressed(els.gAbs,false); setPressed(els.gPct,true); els.profit.value=30; calc(); };
+
+  // presets (ค่าเริ่มต้นแก้ได้ทุกช่อง)
+  els.preset.onchange = ()=>{
+    switch(els.preset.value){
+      case 'tiktok':
+        // โครงสร้างค่าธรรมเนียมมีการปรับตั้งแต่ 1 ม.ค. 2025 (ให้ผู้ใช้กรอกตามหมวด)
+        els.feeComm.value = ''; // ให้กรอกตามหมวด/สถานะร้าน
+        els.feePay.value  = ''; // ให้กรอกตามช่องทางชำระจริงของร้าน
+        els.feeFix.value  = 0;
+        els.baseComm.value= 'store_only';
+        els.basePay.value = 'final';
+        break;
+      case 'shopee':
+        // ตัวอย่างพรีเซ็ตไทย: คอมมิชชั่น (ช่วงกว้าง) + ค่าธุรกรรม 3.21% รวม VAT
+        els.feeComm.value = 6;   // ผู้ใช้ปรับตามหมวด (5–8% non-Mall / 5–11% Mall)
+        els.feePay.value  = 3.21; // ธุรกรรมไทย (รวม VAT) – ปรับได้
+        els.feeFix.value  = 0;
+        els.baseComm.value= 'store_only';
+        els.basePay.value = 'final';
+        break;
+      case 'lazada':
+        // ตัวอย่างพรีเซ็ตไทย: คอมมิชชั่นช่วง 3–7% / ค่าชำระเงินราว 2% (ขึ้นกับวิธีชำระ)
+        els.feeComm.value = 5;
+        els.feePay.value  = 2;
+        els.feeFix.value  = 0;
+        els.baseComm.value= 'store_only';
+        els.basePay.value = 'final';
+        break;
+      default:
+        els.feeComm.value=''; els.feePay.value=''; els.feeFix.value=0;
+        els.baseComm.value='store_only'; els.basePay.value='final';
+    }
+    calc();
+  };
+
+  // recalc on input
+  document.querySelectorAll('input,select').forEach(i=> i.addEventListener('input', calc));
+
+  function deriveLayer(P, fix, pct){
+    // (P - fix) * (1 - pct)  => a*P + b
+    const a = (1 - pct);
+    const b = - (1 - pct) * fix;
+    return {a,b, val: (P - fix) * a};
+  }
+
+  function baseExpr(type, P, store, plat, orderStoreFirst){
+    // คืน a,b สำหรับฐานที่เลือก
+    // store_only = (P - store.fix)*(1-store.pct)
+    // all_after  = apply both layers in selected order
+    // list       = P
+    if (type==='list') return {a:1, b:0};
+    if (type==='store_only'){
+      const a = (1 - store.pct), b = - (1 - store.pct) * store.fix;
+      return {a,b};
+    }
+    // all_after
+    if (orderStoreFirst){
+      const s = deriveLayer(0, store.fix, store.pct); // use coefficients only
+      const p = {a:(1 - plat.pct), b: - (1 - plat.pct) * plat.fix};
+      // compose: p( s(P) ) = (p.a)*(s.a)*P + (p.a*s.b + p.b)
+      return { a: p.a * s.a, b: p.a * s.b + p.b };
+    }else{
+      const p = deriveLayer(0, plat.fix, plat.pct);
+      const s = {a:(1 - store.pct), b: - (1 - store.pct) * store.fix};
+      return { a: s.a * p.a, b: s.a * p.b + s.b };
+    }
+  }
+
+  function calc(){
+    const dec   = Math.max(0, Math.min(4, toNum(els.dec.value)));
+    const rndTo = Math.max(1, toNum(els.roundTo.value));
+
+    const cost = Math.max(0, toNum(els.cost.value));
+    const pval = Math.max(0, toNum(els.profit.value));
+    const profitAbs = els.gPct.getAttribute('aria-pressed')==='true' ? cost*(pval/100) : pval;
+    const target = cost + profitAbs;
+
+    // discounts
+    const store = { pct: Math.max(0, toNum(els.storePct.value)/100), fix: Math.max(0, toNum(els.storeFix.value)) };
+    const plat  = { pct: Math.max(0, toNum(els.platPct.value)/100),  fix: Math.max(0, toNum(els.platFix.value))  };
+    const orderStoreFirst = els.orderStoreFirst.getAttribute('aria-pressed')==='true';
+
+    // build S2 = a2*P + b2  (ยอดลูกค้าจ่ายก่อนหักค่าธรรมเนียม)
+    const first = orderStoreFirst ? store : plat;
+    const second= orderStoreFirst ? plat  : store;
+
+    const A1 = (1 - first.pct), B1 = - (1 - first.pct) * first.fix; // S1 = A1*P + B1
+    const A2 = (1 - second.pct), B2 = - (1 - second.pct) * second.fix;
+
+    const a2 = A2 * A1;
+    const b2 = A2 * B1 + B2;
+
+    // fee bases
+    const commBase = baseExpr(els.baseComm.value, 0, store, plat, orderStoreFirst); // aC,bC
+    const payBase  = baseExpr(els.basePay.value,  0, store, plat, orderStoreFirst); // aT,bT
+
+    const cPct = Math.max(0, toNum(els.feeComm.value)/100);
+    const tPct = Math.max(0, toNum(els.feePay.value)/100);
+    const fFix = Math.max(0, toNum(els.feeFix.value));
+
+    // solve for P: Net = (a2 - cPct*aC - tPct*aT)*P + (b2 - cPct*bC - tPct*bT - fFix) = target
+    const denom = (a2 - cPct*commBase.a - tPct*payBase.a);
+    if (denom <= 0){
+      showImpossible(dec, target, "พารามิเตอร์ทำให้ไม่สามารถแก้สมการ (ตัวหาร ≤ 0) — ลด % ค่าธรรมเนียม/ส่วนลดลง");
+      return;
+    }
+    let P = (target - (b2 - cPct*commBase.b - tPct*payBase.b - fFix)) / denom;
+
+    // ปัดราคาให้น่าใช้
+    if (rndTo > 0) P = Math.ceil(P / rndTo) * rndTo;
+
+    // คำนวณไปข้างหน้า เพื่อแสดงรายละเอียด
+    const S1 = A1*P + B1;
+    const S2 = a2*P + b2; // before fees (ยอดลูกค้าจ่าย)
+    const baseC = commBase.a*P + commBase.b;
+    const baseT = payBase.a*P + payBase.b;
+
+    const feeC = cPct * baseC;
+    const feeT = tPct * baseT;
+    const feeTotal = feeC + feeT + fFix;
+    const net = S2 - feeTotal;
+
+    // แสดงผล
+    els.listPrice.textContent  = money(P, dec) + " ฿";
+    els.finalPrice.textContent = money(S2, dec) + " ฿";
+    els.feeTotal.textContent   = money(feeTotal, dec) + " ฿";
+    els.net.textContent        = money(net, dec) + " ฿";
+    els.target.textContent     = money(target, dec) + " ฿";
+    els.step1.textContent      = money(S1, dec) + " ฿";
+    els.step2.textContent      = money(S2, dec) + " ฿";
+
+    // หมายเหตุ
+    const diff = Math.abs(net - target);
+    els.note.textContent = diff <= Math.max(0.01, target*0.001)
+      ? "✓ ตั้งราคานี้แล้ว เงินรับสุทธิ ≈ เป้าหมายที่ต้องการ"
+      : "ตรวจสอบค่า % ส่วนลด/ค่าธรรมเนียมให้ตรงกับร้านคุณ";
+
+    // copy
+    els.copyBtn.onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText(P.toFixed(dec));
+        els.copyBtn.textContent = "คัดลอกแล้ว ✓";
+        setTimeout(()=> els.copyBtn.textContent="คัดลอกราคาตั้ง", 1100);
+      }catch(e){ alert("คัดลอกไม่สำเร็จ: " + e.message); }
+    };
+  }
+
+  function showImpossible(dec, target, reason){
+    els.listPrice.textContent  = "—";
+    els.finalPrice.textContent = "—";
+    els.feeTotal.textContent   = "—";
+    els.net.textContent        = "—";
+    els.step1.textContent      = "—";
+    els.step2.textContent      = "—";
+    els.target.textContent     = money(target, dec) + " ฿";
+    els.note.textContent       = "ไม่สามารถคำนวณได้: " + reason;
+  }
+
+  calc();
+})();
+</script>
+</body>
+</html>
